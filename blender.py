@@ -4,6 +4,8 @@ from bpy.types import Panel
 import os
 import re
 
+from datetime import datetime
+
 # commit menu
 """
 class Commit(bpy.types.Menu):
@@ -23,47 +25,28 @@ class Kit(Panel):
     bl_category = "Kit"
 
     def draw(self, ctx):
-        commit = open(os.getcwd() + "/kit/test/.git/logs/refs/heads/master", "r", encoding="utf-8")
-        l = []
-        for _ in commit:
-            l.append(_)
+        l = open(os.getcwd() + "/kit/test/.git/logs/refs/heads/master", "r").readlines()
 
-        commit.close()
-
-        msg = []
-        for _ in l:
-            msg.append(re.search(r"(?<=commit).+", _).group(0))\
-
-
+        # SHA
         self.layout.prop(ctx.scene, "commit")
 
         # message
+        msg = list(map(lambda _ : re.search("(?<=commit).+", _).group(0), l))
+
         self.layout.label(text = msg[0])
 
+        # timestamp
+        timestamp = re.search("(?<= )\d{10}(?= )", l[0]).group(0)
+
+        date = datetime.fromtimestamp(int(timestamp))
+        format = date.strftime('%d %b %Y %H:%M')
+
+        self.layout.label(text = format)
+
+        # branch
+        # branch = os.listdir(os.getcwd() + "/kit/test/.git/refs/heads")
 
         """
-        # branch
-        branch = os.listdir(os.getcwd() + "/kit/test/.git/refs/heads")
-
-        # commit
-        self.layout.menu("kit_commit")
-
-        line = []
-        commit = open(os.getcwd() + "/kit/test/.git/logs/refs/heads/master", "r", encoding="utf-8")
-        for c in commit:
-            line.append(c)
-
-        commit.close()
-
-        for l in line:
-            word = l.split(" ")
-
-            fst = word[0]
-            trunc = fst[0:5]
-
-            msg = re.search(r"(?<=commit).+", l).group(0)
-
-            self.layout.label(text = trunc + " " + msg)
 
         # change
         if not "asdf" in bpy.data.objects:
@@ -108,9 +91,7 @@ def register():
     )
 
 def unregister():
-    #bpy.utils.unregister_claKitKit)
     bpy.utils.unregister_class(Kit)
-    #bpy.utils.unregister_class(Commit)
 
 if __name__ == "__main__":
     register()
