@@ -1,133 +1,171 @@
 import bpy
-from bpy.types import Panel
 
 import os
 import re
 
+import subprocess
+
 from datetime import datetime
 
-bl_info = {
-    "name": "Kit",
-    "category": "Object"
-}
+from git import *
 
-# commit menu
-"""
-class Commit(bpy.types.Menu):
-    bl_idname = "kit_commit"
-    bl_label = "SHA"
+def write_obj(name, sha):
+    repo = Repo(path = "./kit/" + name)
+    
+    commit = list(repo.iter_commits(repo.heads.master))
+      
+    entry = list(list(commit)[0].tree.traverse())[0]
 
-    def draw(self, context):
-        for asdf in ["asdf", "hjkl"]:
-            self.layout.operator("object.select_all", text = asdf).action = "TOGGLE"
-"""
+    cont = repo.git.show('{}:{}'.format(sha, entry.path))
+			
+    f = open("./kit/tmp.obj", "w")
+    f.write(cont)
+    f.close()
+    
+class ChangeName(bpy.types.Operator):
+    bl_label = "Change Name"
+    bl_idname = "object.change_name"
+    
+    # name
+    name = bpy.props.StringProperty(name = "name")
+ 
+    def invoke(self, ctx, e):     
+        return ctx.window_manager.invoke_props_dialog(self)
 
-# import
+    def execute(self, ctx):
+        global globalName
+        globalName = self.name
+        
+        repo = Repo(path = "./kit/" + globalName)
+
+        commit = repo.iter_commits(repo.heads.master)
+        
+        global globalShaList
+        globalShaList = list(map(lambda _: str(_), list(commit)))
+        
+        return {"FINISHED"}
+    
+class ChangeSha(bpy.types.Operator):
+    bl_label = "Change SHA"
+    bl_idname = "object.change_sha"
+
+    def invoke(self, ctx, e):
+        return ctx.window_manager.invoke_props_dialog(self)
+
+    def execute(self, ctx):
+        global globalName
+        print(globalName)
+        """
+            
+        repo = Repo(path = "./kit/" + "asdf")
+
+        commit = repo.iter_commits(repo.heads.master)
+            
+        sha = bpy.props.EnumProperty(items = list(map(lambda _: (str(_).upper(), str(_), ""), commit)))
+        """
+        return {"FINISHED"}
+    
+class Change(bpy.types.Operator):
+    bl_label = "Reset"
+    bl_idname = "object.change"
+
+    def execute(self, ctx):
+        print(globalShaList)
+        
+        write_obj(globalName, globalSha)
+        
+        if globalName in bpy.data.objects:
+            bpy.data.objects[globalName].select = True 
+            bpy.ops.object.delete()     
+            
+        bpy.ops.import_scene.obj(filepath = "./kit/tmp.obj") 
+                    
+        bpy.context.selected_objects[0].name = globalName
+        
+        return {"FINISHED"}
+
 class Reset(bpy.types.Operator):
+    bl_label = "Reset"
     bl_idname = "object.reset"
-    bl_label = "Import Object"
+    
+    name = bpy.props.StringProperty(name = "name")
+    
+    repo = Repo(path = "./kit/" + "asdf")
 
-    name = "test"
+    commit = repo.iter_commits(repo.heads.master)
+        
+    sha = bpy.props.EnumProperty(items = list(map(lambda _: (str(_).upper(), str(_), ""), commit)))
 
-    if name in bpy.context.scene.objects:
-        bpy.context.scene.objects[name].select = True
+    def invoke(self, ctx, e):
+        return ctx.window_manager.invoke_props_dialog(self)
 
-        bpy.ops.object.delete()
-
-    bpy.ops.import_scene.obj(filepath = "./kit/" + name + "/" + "test" + ".obj")
-
-    bpy.context.selected_objects[0].name = name
-
-class Asdf(Panel):
+    def execute(self, ctx): 
+        write_obj(self.name, self.sha)
+        
+        if self.name in bpy.data.objects:
+            bpy.data.objects[self.name].select = True 
+            bpy.ops.object.delete()     
+            
+        bpy.ops.import_scene.obj(filepath = "./kit/tmp.obj") 
+                    
+        bpy.context.selected_objects[0].name = self.name
+        
+        return {"FINISHED"} 
+        
+class Kit(bpy.types.Panel):  
     bl_space_type = "VIEW_3D"
     bl_region_type = "TOOLS"
-    bl_label = "asdf"
+    bl_label = "History"
     bl_context = "objectmode"
     bl_category = "Kit"
-
+    
     def draw(self, ctx):
-        print("asdf")
-
-class Kit(Panel):
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "TOOLS"
-    bl_label = "test"
-    bl_context = "objectmode"
-    bl_category = "Kit"
-
-    def draw(self, ctx):
-        i = 1
-
-        # obj
-        obj = os.listdir(os.getcwd() + "/kit")
-
+        self.layout.operator("object.change_name", text = "Change name")
+        self.layout.operator("object.change_sha", text = "Change SHA")
+        self.layout.operator("object.change", text = "Change")
+    
+        obj = [f for f in os.listdir("./kit") if os.path.isdir(os.path.join("./kit", f))]
+       
         for _ in obj:
-            self.layout.operator("mesh.primitive_cube_add", _)
+            # header
+            self.layout.label(text = _)
+            
+            repo = Repo(path = "./kit/" + _)
 
-        ref = open(os.getcwd() + "/kit/test/.git/logs/refs/heads/master", "r").readlines()
-
-        # SHA
-        self.layout.prop(ctx.scene, "commit")
-
-        # message
-        msg = list(map(lambda _ : re.search("(?<=commit).+", _).group(0), ref))
-
-        self.layout.label(text = msg[i])
-
-        # time
-        unix_timestamp = re.search("(?<= )\d{10}(?= )", ref[i]).group(0)
-
-        date = datetime.fromtimestamp(int(unix_timestamp))
-        format = date.strftime("%d %b %Y %H:%M")
-
-        self.layout.label(text = format)
-
-        # branch
-        # branch = os.listdir(os.getcwd() + "/kit/test/.git/refs/heads")
-
-        # change
-        # property_1 = bpy.props.StringProperty()
-
-        self.layout.operator("object.reset", text = "Update")
-
-        """
-        if not "asdf" in bpy.data.objects:
-            bpy.ops.import_scene.obj(filepath="kit/test/test.obj")
-
-            print(bpy.context.scene.objects.active.name)
-
-        else:
-            print("this it it chief")
-        """
+            tree = repo.tree()
+            for blob in tree:
+                # tree
+                for commit in list(repo.iter_commits(paths = blob.path)):
+                    self.layout.label("\"" + commit.message + "\"")
+                
+                # timestamp
+                unix_timestamp = commit.committed_date
+                
+                date = datetime.fromtimestamp(unix_timestamp)
+                format = date.strftime("%d %b %Y %H:%M")
+                
+                self.layout.label(text = format)
+           
+            self.layout.separator()
+           
+            # change
+            self.layout.operator("object.reset", text = "Update")
+            
+            self.layout.separator()
 
 def register():
+    bpy.utils.register_class(ChangeName)
+    bpy.utils.register_class(ChangeSha)
+    bpy.utils.register_class(Change)
     bpy.utils.register_class(Reset)
-    bpy.utils.register_class(Asdf)
     bpy.utils.register_class(Kit)
 
-    # commit
-    commit = open(os.getcwd() + "/kit/test/.git/logs/refs/heads/master", "r").readlines()
-
-    sha = []
-    msg = []
-    for _ in commit:
-        word = _.split(" ")
-
-        fst = word[0]
-        trunc = fst[0:5]
-        sha.append(trunc)
-
-        msg.append(re.search(r"(?<=commit).+", _).group(0))
-
-    bpy.types.Scene.commit = bpy.props.EnumProperty(
-        name = "Commit",
-        items = list(map(lambda _: ("asdf".upper(), _, "asdf"), sha))
-    )
-
 def unregister():
-    bpy.utils.register_class(Reset)
-    bpy.utils.register_class(Asdf)
+    bpy.utils.unregister_class(ChangeName)
+    bpy.utils.unregister_class(ChangeSha)
+    bpy.utils.unregister_class(Change)
+    bpy.utils.unregister_class(Reset)
     bpy.utils.unregister_class(Kit)
-
+    
 if __name__ == "__main__":
     register()
