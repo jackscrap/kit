@@ -1,3 +1,11 @@
+bl_info = {
+    "name:": "Kit",
+    "description": "Version control for Blender",
+    "author": "jackhasakeyboard",
+    "version": (0, 1),
+    "category": "Object"
+}
+
 import bpy
 
 from git import *
