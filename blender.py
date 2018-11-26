@@ -11,6 +11,7 @@ import bpy
 from git import *
 
 import os
+from datetime import datetime
 
 data = {}
 obj = [f for f in os.listdir("./kit") if os.path.isdir(os.path.join("./kit", f))]
@@ -32,13 +33,28 @@ class Kit(bpy.types.Panel):
 
     def draw(self, ctx):
         for _ in bpy.context.scene.commit:
-            self.layout.label(text = _.name)
+            cont = self.layout.box()
 
-            self.layout.prop(
+            cont.label(text = _.name)
+
+            cont.prop(
                 ctx.scene.commit[_.name],
                 "sha",
                 text = "SHA"
             )
+
+            col = cont.column()
+            for commit in repo.iter_commits(repo.heads.master):
+                sub = col.box()
+
+                sub.label(text = commit.hexsha[:5])
+
+                sub.label(text = "\"" + commit.message.rstrip("\n") + "\"")
+
+                val = datetime.fromtimestamp(commit.committed_date)
+                format = val.strftime("%b %d %Y %H:%M")
+
+                sub.label(text = format)
 
 def reset(self, ctx):
     cont = repo.git.show("{}:{}".format(self.sha, "./" + self.name + ".obj"))
