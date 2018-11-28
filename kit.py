@@ -1,5 +1,5 @@
 bl_info = {
-    "name:": "Kit",
+    "name": "Kit",
     "description": "Version control for Blender",
     "author": "jackhasakeyboard",
     "version": (0, 1),
@@ -13,16 +13,35 @@ from git import *
 import os
 from datetime import datetime
 
+path = "/home/jack/.config/blender/2.79/scripts/addons/kit/obj/"
+
 data = {}
-obj = [f for f in os.listdir("./kit") if os.path.isdir(os.path.join("./kit", f))]
+obj = [f for f in os.listdir(path) if os.path.isdir(os.path.join(path, f))]
 for name in obj:
-    repo = Repo("./kit/" + name)
+    repo = Repo(path + name)
 
     sha = []
     for commit in repo.iter_commits(repo.heads.master):
         sha.append(commit.hexsha)
 
     data[name] = sha
+
+class Set(bpy.types.Operator):
+    bl_idname = "object.set"
+    bl_label = "set"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        scene = context.scene
+
+        bpy.context.scene.commit.clear()
+        for obj in data:
+            key = obj
+
+            item = bpy.context.scene.commit.add()
+            item.name = obj
+
+        return {"FINISHED"}
 
 class Kit(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
@@ -32,6 +51,8 @@ class Kit(bpy.types.Panel):
     bl_category = "Kit"
 
     def draw(self, ctx):
+        self.layout.operator("object.set")
+
         for _ in bpy.context.scene.commit:
             cont = self.layout.box()
 
@@ -59,14 +80,14 @@ class Kit(bpy.types.Panel):
 def reset(self, ctx):
     cont = repo.git.show("{}:{}".format(self.sha, "./" + self.name + ".obj"))
 
-    f = open("./kit/tmp.obj", "w")
+    f = open(path + "tmp.obj", "w")
     f.write(cont)
     f.close()
 
     if self.name in bpy.data.objects:
         bpy.ops.object.delete()
 
-    bpy.ops.import_scene.obj(filepath = "./kit/tmp.obj")
+    bpy.ops.import_scene.obj(filepath = path + "tmp.obj")
 
     bpy.context.scene.objects[0].name = self.name
 
@@ -86,13 +107,6 @@ def register():
     bpy.utils.register_class(Item)
 
     bpy.types.Scene.commit = bpy.props.CollectionProperty(type = Item)
-
-    bpy.context.scene.commit.clear()
-    for obj in data:
-        key = obj
-
-        item = bpy.context.scene.commit.add()
-        item.name = obj
 
     bpy.utils.register_module(__name__)
 
