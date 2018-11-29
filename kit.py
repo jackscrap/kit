@@ -1,5 +1,5 @@
 bl_info = {
-    "name": "Kit",
+    "name": "test",
     "description": "Version control for Blender",
     "author": "jackhasakeyboard",
     "version": (0, 1),
@@ -13,12 +13,12 @@ from git import *
 import os
 from datetime import datetime
 
-path = "/home/jack/.config/blender/2.79/scripts/addons/kit/obj/"
+path = os.path.join(bpy.utils.script_path_user(), "addons/kit/obj")
 
 data = {}
 obj = [f for f in os.listdir(path) if os.path.isdir(os.path.join(path, f))]
 for name in obj:
-    repo = Repo(path + name)
+    repo = Repo(os.path.join(path, name))
 
     sha = []
     for commit in repo.iter_commits(repo.heads.master):
@@ -29,7 +29,6 @@ for name in obj:
 class Set(bpy.types.Operator):
     bl_idname = "object.set"
     bl_label = "set"
-    bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
         scene = context.scene
@@ -48,12 +47,12 @@ class Kit(bpy.types.Panel):
     bl_region_type = "TOOLS"
     bl_label = "History"
     bl_context = "objectmode"
-    bl_category = "Kit"
+    bl_category = "test"
 
     def draw(self, ctx):
         self.layout.operator("object.set")
 
-        for _ in bpy.context.scene.commit:
+        for _ in ctx.scene.commit:
             cont = self.layout.box()
 
             cont.label(text = _.name)
@@ -64,39 +63,29 @@ class Kit(bpy.types.Panel):
                 text = "SHA"
             )
 
-            col = cont.column()
-            for commit in repo.iter_commits(repo.heads.master):
-                sub = col.box()
-
-                sub.label(text = commit.hexsha[:5])
-
-                sub.label(text = "\"" + commit.message.rstrip("\n") + "\"")
-
-                val = datetime.fromtimestamp(commit.committed_date)
-                format = val.strftime("%b %d %Y %H:%M")
-
-                sub.label(text = format)
-
 def reset(self, ctx):
-    cont = repo.git.show("{}:{}".format(self.sha, "./" + self.name + ".obj"))
+    cont = repo.git.show(
+        "{}:{}".format(
+            self.sha,
+            self.name + ".obj"
+        )
+    )
 
-    f = open(path + "tmp.obj", "w")
+    f = open(os.path.join(path, "tmp.obj"), "w")
     f.write(cont)
     f.close()
 
     if self.name in bpy.data.objects:
         bpy.ops.object.delete()
 
-    bpy.ops.import_scene.obj(filepath = path + "tmp.obj")
+    bpy.ops.import_scene.obj(filepath = os.path.join(path, "tmp.obj"))
 
     bpy.context.scene.objects[0].name = self.name
 
+def func(self, ctx):
+    return list(map(lambda _: (str(_), str(_), ""), data[self.name]))
+
 def register():
-    key = list(data.keys())[0]
-
-    def func(self, ctx):
-        return list(map(lambda _: (str(_)[:5], str(_)[:5], ""), data[key]))
-
     class Item(bpy.types.PropertyGroup):
         name = bpy.props.StringProperty()
         sha = bpy.props.EnumProperty(
