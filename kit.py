@@ -35,8 +35,6 @@ class Set(bpy.types.Operator):
 
         bpy.context.scene.commit.clear()
         for obj in data:
-            key = obj
-
             item = bpy.context.scene.commit.add()
             item.name = obj
 
@@ -64,6 +62,8 @@ class Kit(bpy.types.Panel):
             )
 
 def reset(self, ctx):
+    repo = Repo(os.path.join(path, self.name))
+
     cont = repo.git.show(
         "{}:{}".format(
             self.sha,
