@@ -1,5 +1,5 @@
 bl_info = {
-    "name": "test",
+    "name": "Kit",
     "description": "Version control for Blender",
     "author": "jackhasakeyboard",
     "version": (0, 1),
@@ -14,7 +14,7 @@ import os
 from datetime import datetime
 
 path = os.path.join(bpy.utils.script_path_user(), "addons/kit/obj")
-
+ 
 data = {}
 obj = [f for f in os.listdir(path) if os.path.isdir(os.path.join(path, f))]
 for name in obj:
@@ -30,9 +30,7 @@ class Set(bpy.types.Operator):
     bl_idname = "object.set"
     bl_label = "set"
 
-    def execute(self, context):
-        scene = context.scene
-
+    def execute(self, ctx):
         bpy.context.scene.commit.clear()
         for obj in data:
             item = bpy.context.scene.commit.add()
@@ -41,11 +39,9 @@ class Set(bpy.types.Operator):
         return {"FINISHED"}
 
 class Kit(bpy.types.Panel):
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "TOOLS"
-    bl_label = "History"
-    bl_context = "objectmode"
-    bl_category = "test"
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_label = "Kit"
 
     def draw(self, ctx):
         self.layout.operator("object.set")
@@ -54,12 +50,29 @@ class Kit(bpy.types.Panel):
             cont = self.layout.box()
 
             cont.label(text = _.name)
-
+            
             cont.prop(
                 ctx.scene.commit[_.name],
                 "sha",
                 text = "SHA"
             )
+
+            repo = Repo(os.path.join(path, _.name))
+
+            for _ in repo.iter_commits(repo.heads.master):
+                sub = cont.box()
+
+                # SHA
+                sub.label(text = _.hexsha)
+
+                # message
+                sub.label(text = "\"" + _.message.rstrip("\n") + "\"")
+
+                # date
+                epoch = _.committed_date
+                time = datetime.fromtimestamp(epoch)
+                hrf = time.strftime("%d %b %Y %H:%M")
+                sub.label(text = hrf)
 
 def reset(self, ctx):
     repo = Repo(os.path.join(path, self.name))
@@ -83,7 +96,7 @@ def reset(self, ctx):
     bpy.context.scene.objects[0].name = self.name
 
 def func(self, ctx):
-    return list(map(lambda _: (str(_), str(_), ""), data[self.name]))
+    return list(map(lambda _: (str(_), str(_)[:5], ""), data[self.name]))
 
 def register():
     class Item(bpy.types.PropertyGroup):
